@@ -10,8 +10,10 @@
 typedef struct User {
     char username[50];
     char password[50];
+    char email[50];
+    char phone[30];
     int status; 
-    char homepage[100]; // Them truong homepage
+    char homepage[100]; // Thêm tru?ng homepage
     struct User* next;
 } User;
 
@@ -19,7 +21,7 @@ User* head = NULL;
 User* currentUser = NULL;   
 int isLoggedIn = 0;        
 
-// Doc file tai khoan vao danh sach lien ket
+// Ð?c file tài kho?n vào danh sách liên k?t
 void loadUsersFromFile() {
     FILE* file = fopen(FILENAME, "r");
     if (file == NULL) {
@@ -27,17 +29,17 @@ void loadUsersFromFile() {
         exit(1);
     }
 
-    char line[200];
+    char line[300];
     while (fgets(line, sizeof(line), file)) {
         User* newUser = (User*)malloc(sizeof(User));
-        sscanf(line, "%s %s %d %s", newUser->username, newUser->password, &newUser->status, newUser->homepage);
+        sscanf(line, "%s %s %s %s %d %s", newUser->username, newUser->password, newUser->email, newUser->phone, &newUser->status, newUser->homepage);
         newUser->next = head;
         head = newUser;
     }
     fclose(file);
 }
 
-// Luu danh sach nguoi dung vao file
+// Luu danh sách ngu?i dùng vào file
 void saveUsersToFile() {
     FILE* file = fopen(FILENAME, "w");
     if (file == NULL) {
@@ -47,13 +49,34 @@ void saveUsersToFile() {
 
     User* current = head;
     while (current != NULL) {
-        fprintf(file, "%s %s %d %s\n", current->username, current->password, current->status, current->homepage);
+        fprintf(file, "%s %s %s %s %d %s\n", current->username, current->password, current->email, current->phone, current->status, current->homepage);
         current = current->next;
     }
     fclose(file);
 }
 
-// Dang ky nguoi dung moi
+// Ki?m tra tính h?p l? c?a s? di?n tho?i
+int isValidPhoneNumber(const char* phone) {
+    for (int i = 0; phone[i] != '\0'; i++) {
+        if (!isdigit(phone[i])) {
+            return 0; 
+        }
+    }
+    return 1; 
+}
+
+// Ki?m tra tính h?p l? c?a email
+int isEmailValid(const char* email) {
+    while (*email) {
+        if (isspace(*email)) {
+            return 0; 
+        }
+        email++;
+    }
+    return 1; 
+}
+
+// Ðang ký ngu?i dùng m?i
 void registerUser() {
     User* newUser = (User*)malloc(sizeof(User));
     if (newUser == NULL) {
@@ -69,15 +92,52 @@ void registerUser() {
     fgets(newUser->password, sizeof(newUser->password), stdin);
     newUser->password[strcspn(newUser->password, "\n")] = 0; 
 
+    while (1) {
+        printf("Enter email: ");
+        fgets(newUser->email, sizeof(newUser->email), stdin);
+        newUser->email[strcspn(newUser->email, "\n")] = 0; 
+
+        if (strlen(newUser->email) > 40) {
+            printf("Email is too long. Please enter again.\n");
+        } else if (!isEmailValid(newUser->email)) {
+            printf("Email must not contain spaces. Please enter again.\n");
+        } else {
+            break; 
+        }
+    }
+
+    while (1) {
+        printf("Enter phone: ");
+        fgets(newUser->phone, sizeof(newUser->phone), stdin);
+        newUser->phone[strcspn(newUser->phone, "\n")] = 0; 
+
+        if (strlen(newUser->phone) > 12) {
+            printf("Phone number is too long. Please enter again.\n");
+        } else if (!isValidPhoneNumber(newUser->phone)) {
+            printf("Phone number must contain only digits. Please enter again.\n");
+        } else {
+            break; 
+        }
+    }
+
     printf("Enter homepage (domain or IP address): ");
     fgets(newUser->homepage, sizeof(newUser->homepage), stdin);
     newUser->homepage[strcspn(newUser->homepage, "\n")] = 0; 
 
-    // Kiem tra xem username da ton tai chua
     User* current = head;
     while (current != NULL) {
         if (strcmp(current->username, newUser->username) == 0) {
             printf("Username already exists\n");
+            free(newUser);
+            return;
+        }
+        if (strcmp(current->email, newUser->email) == 0) {
+            printf("Email already exists\n");
+            free(newUser);
+            return;
+        }
+        if (strcmp(current->phone, newUser->phone) == 0) {
+            printf("Phone already exists\n");
             free(newUser);
             return;
         }
@@ -91,7 +151,7 @@ void registerUser() {
     printf("Registered successfully.\n");
 }
 
-// Dang nhap nguoi dung
+// Ðang nh?p ngu?i dùng
 void signIn() {
     if (isLoggedIn) {
         printf("You are already logged in.\n");
@@ -122,7 +182,6 @@ void signIn() {
                     isLoggedIn = 1;
                     currentUser = current;
 
-                    // Luu lich su dang nhap
                     FILE* historyFile = fopen(HISTORYFILE, "a");
                     time_t now = time(NULL);
                     struct tm *t = localtime(&now);
@@ -135,27 +194,27 @@ void signIn() {
                             t->tm_min, 
                             t->tm_sec);
                     fclose(historyFile);
-                    return; // Dang nhap thanh cong, thoat ham
+                    return; 
                 } else {
                     attempts++;
                     printf("Wrong password, %d tries left\n", 3 - attempts);
                 }
 
                 if (attempts == 3) {
-                    current->status = 0; // Khoa tai khoan
+                    current->status = 0; 
                     saveUsersToFile();
                     printf("Your account is blocked.\n");
                     return;
                 }
             }
-            return; // Thoat neu dang nhap khong thanh cong
+            return;
         }
         current = current->next;
     }
     printf("Account does not exist.\n");
 }
 
-// Hien thi homepage (ten mien)
+// Hi?n th? homepage (tên mi?n)
 void viewHomepageDomain() {
     if (!isLoggedIn) {
         printf("You are not logged in yet.\n");
@@ -164,7 +223,7 @@ void viewHomepageDomain() {
     printf("Your homepage (domain name): %s\n", currentUser->homepage);
 }
 
-// Hien thi homepage (dia chi IP)
+// Hi?n th? homepage (d?a ch? IP)
 void viewHomepageIP() {
     if (!isLoggedIn) {
         printf("You are not logged in yet.\n");
@@ -173,7 +232,6 @@ void viewHomepageIP() {
     printf("Your homepage (IP address): %s\n", currentUser->homepage);
 }
 
-// Dang xuat nguoi dung
 void signOut() {
     if (!isLoggedIn) {
         printf("You are not logged in yet.\n");
@@ -205,7 +263,7 @@ int main() {
         
         fgets(input, sizeof(input), stdin); 
 
-        if (sscanf(input, "%d", &choice) != 1 || choice < 1 || choice > 9) {
+         if (sscanf(input, "%d", &choice) != 1 || choice < 1 || choice > 9) {
             printf("Goodbye!\n");
             break; 
         }
@@ -218,16 +276,16 @@ int main() {
                 signIn();
                 break;
             case 3:
-                changePassword();
+                // Function to change password can be added here if needed
                 break;
             case 4:
-                updateAccountInfo();
+                // Function to update account info can be added here if needed
                 break;
             case 5:
-                resetPassword();
+                // Function to reset password can be added here if needed
                 break;
             case 6:
-                viewLoginHistory();
+                // Function to view login history can be added here if needed
                 break;
             case 7:
                 viewHomepageDomain();
