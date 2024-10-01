@@ -13,7 +13,7 @@ typedef struct User {
     char email[50];
     char phone[30];
     int status; 
-    char homepage[100]; // Thêm tru?ng homepage
+    char homepage[100]; 
     struct User* next;
 } User;
 
@@ -39,7 +39,7 @@ void loadUsersFromFile() {
     fclose(file);
 }
 
-// Luu danh sách ngu?i dùng vào file
+
 void saveUsersToFile() {
     FILE* file = fopen(FILENAME, "w");
     if (file == NULL) {
@@ -55,7 +55,7 @@ void saveUsersToFile() {
     fclose(file);
 }
 
-// Ki?m tra tính h?p l? c?a s? di?n tho?i
+
 int isValidPhoneNumber(const char* phone) {
     for (int i = 0; phone[i] != '\0'; i++) {
         if (!isdigit(phone[i])) {
@@ -65,7 +65,7 @@ int isValidPhoneNumber(const char* phone) {
     return 1; 
 }
 
-// Ki?m tra tính h?p l? c?a email
+
 int isEmailValid(const char* email) {
     while (*email) {
         if (isspace(*email)) {
@@ -76,7 +76,7 @@ int isEmailValid(const char* email) {
     return 1; 
 }
 
-// Ðang ký ngu?i dùng m?i
+
 void registerUser() {
     User* newUser = (User*)malloc(sizeof(User));
     if (newUser == NULL) {
@@ -151,7 +151,7 @@ void registerUser() {
     printf("Registered successfully.\n");
 }
 
-// Ðang nh?p ngu?i dùng
+
 void signIn() {
     if (isLoggedIn) {
         printf("You are already logged in.\n");
@@ -214,7 +214,7 @@ void signIn() {
     printf("Account does not exist.\n");
 }
 
-// Hi?n th? homepage (tên mi?n)
+
 void viewHomepageDomain() {
     if (!isLoggedIn) {
         printf("You are not logged in yet.\n");
@@ -223,7 +223,7 @@ void viewHomepageDomain() {
     printf("Your homepage (domain name): %s\n", currentUser->homepage);
 }
 
-// Hi?n th? homepage (d?a ch? IP)
+
 void viewHomepageIP() {
     if (!isLoggedIn) {
         printf("You are not logged in yet.\n");
@@ -276,16 +276,16 @@ int main() {
                 signIn();
                 break;
             case 3:
-                // Function to change password can be added here if needed
+                
                 break;
             case 4:
-                // Function to update account info can be added here if needed
+     
                 break;
             case 5:
-                // Function to reset password can be added here if needed
+               
                 break;
             case 6:
-                // Function to view login history can be added here if needed
+           
                 break;
             case 7:
                 viewHomepageDomain();
