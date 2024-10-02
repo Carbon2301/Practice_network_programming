@@ -79,11 +79,11 @@ int get_ip(char *hostname, char *ips) {
     hints.ai_socktype = SOCK_STREAM;
 
     if ((status = getaddrinfo(hostname, NULL, &hints, &res)) != 0) {
-        return 1; // Not found
+        return 1; 
     }
 
     for (struct addrinfo *p = res; p != NULL; p = p->ai_next) {
-        char ip[INET_ADDRSTRLEN]; // Buffer for IPv4 addresses
+        char ip[INET_ADDRSTRLEN]; 
         struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
         inet_ntop(p->ai_family, &(ipv4->sin_addr), ip, sizeof(ip));
         
@@ -91,7 +91,7 @@ int get_ip(char *hostname, char *ips) {
         strcat(ips, " ");
     }
 
-    freeaddrinfo(res); // Free the linked list
+    freeaddrinfo(res); 
     return 0;
 }
 
@@ -118,7 +118,7 @@ void print_alternate_names(struct hostent *host_info) {
 
 bool is_valid_ip_format(char *ip) {
     struct sockaddr_in sa;
-    return inet_pton(AF_INET, ip, &(sa.sin_addr)) != 0; // Only check for IPv4
+    return inet_pton(AF_INET, ip, &(sa.sin_addr)) != 0; 
 }
 
 bool is_valid_domain_name(char *domain) {
