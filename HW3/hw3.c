@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <ctype.h>
+#include <arpa/inet.h>
+#include <stdbool.h>
+#include <netdb.h>
 
 #define FILENAME "account.txt"
 #define HISTORYFILE "history.txt"
@@ -10,18 +12,17 @@
 typedef struct User {
     char username[50];
     char password[50];
-    char email[50];
-    char phone[30];
     int status; 
-    char homepage[100]; 
+    char homepage[50];
     struct User* next;
 } User;
 
-User* head = NULL; 			
-User* currentUser = NULL;   
-int isLoggedIn = 0;        
+char correctActivationCode[] = "20225593";
+User* head = NULL;
+User* currentUser = NULL;
+int isLoggedIn = 0;
 
-// Ð?c file tài kho?n vào danh sách liên k?t
+// Function to load users from file into the linked list
 void loadUsersFromFile() {
     FILE* file = fopen(FILENAME, "r");
     if (file == NULL) {
@@ -29,17 +30,17 @@ void loadUsersFromFile() {
         exit(1);
     }
 
-    char line[300];
+    char line[200];
     while (fgets(line, sizeof(line), file)) {
         User* newUser = (User*)malloc(sizeof(User));
-        sscanf(line, "%s %s %s %s %d %s", newUser->username, newUser->password, newUser->email, newUser->phone, &newUser->status, newUser->homepage);
+        sscanf(line, "%s %s %d %s", newUser->username, newUser->password, &newUser->status, newUser->homepage);
         newUser->next = head;
         head = newUser;
     }
     fclose(file);
 }
 
-
+// Function to save the users list to file
 void saveUsersToFile() {
     FILE* file = fopen(FILENAME, "w");
     if (file == NULL) {
@@ -49,34 +50,59 @@ void saveUsersToFile() {
 
     User* current = head;
     while (current != NULL) {
-        fprintf(file, "%s %s %s %s %d %s\n", current->username, current->password, current->email, current->phone, current->status, current->homepage);
+        fprintf(file, "%s %s %d %s\n", current->username, current->password, current->status, current->homepage);
         current = current->next;
     }
     fclose(file);
 }
 
-
-int isValidPhoneNumber(const char* phone) {
-    for (int i = 0; phone[i] != '\0'; i++) {
-        if (!isdigit(phone[i])) {
-            return 0; 
-        }
-    }
-    return 1; 
+// Function to check if a string is a valid IP address
+bool is_valid_ip_address(const char *ip_address) {
+    struct sockaddr_in sa;
+    return inet_pton(AF_INET, ip_address, &(sa.sin_addr)) != 0;
 }
 
-
-int isEmailValid(const char* email) {
-    while (*email) {
-        if (isspace(*email)) {
-            return 0; 
-        }
-        email++;
-    }
-    return 1; 
+// Function to check if a string is a valid domain name (but not an IP address)
+bool is_valid_domain_name_but_not_ip_address(const char *domain) {
+    return (strchr(domain, '.') != NULL && !is_valid_ip_address(domain));
 }
 
+// Function to resolve domain from IP
+void get_domain_from_ip(const char* ip) {
+    struct sockaddr_in sa;
+    char host[1024];
 
+    sa.sin_family = AF_INET;
+    inet_pton(AF_INET, ip, &sa.sin_addr);
+
+    if (getnameinfo((struct sockaddr*)&sa, sizeof(sa), host, sizeof(host), NULL, 0, 0) == 0) {
+        printf("Domain: %s\n", host);
+    } else {
+        printf("Unable to resolve domain name for IP address\n");
+    }
+}
+
+// Function to resolve IP from domain
+void get_ip_from_domain(const char* domain) {
+    struct addrinfo hints, *res;
+    struct sockaddr_in *addr;
+    char ip[INET_ADDRSTRLEN];
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+
+    if (getaddrinfo(domain, NULL, &hints, &res) == 0) {
+        addr = (struct sockaddr_in *) res->ai_addr;
+        inet_ntop(AF_INET, &addr->sin_addr, ip, sizeof(ip));
+        printf("IP address: %s\n", ip);
+        freeaddrinfo(res);
+    } else {
+        printf("Unable to resolve IP for domain\n");
+    }
+}
+
+// Registration function
 void registerUser() {
     User* newUser = (User*)malloc(sizeof(User));
     if (newUser == NULL) {
@@ -86,43 +112,15 @@ void registerUser() {
 
     printf("Enter username: ");
     fgets(newUser->username, sizeof(newUser->username), stdin);
-    newUser->username[strcspn(newUser->username, "\n")] = 0; 
+    newUser->username[strcspn(newUser->username, "\n")] = 0;
 
     printf("Enter password: ");
     fgets(newUser->password, sizeof(newUser->password), stdin);
-    newUser->password[strcspn(newUser->password, "\n")] = 0; 
+    newUser->password[strcspn(newUser->password, "\n")] = 0;
 
-    while (1) {
-        printf("Enter email: ");
-        fgets(newUser->email, sizeof(newUser->email), stdin);
-        newUser->email[strcspn(newUser->email, "\n")] = 0; 
-
-        if (strlen(newUser->email) > 40) {
-            printf("Email is too long. Please enter again.\n");
-        } else if (!isEmailValid(newUser->email)) {
-            printf("Email must not contain spaces. Please enter again.\n");
-        } else {
-            break; 
-        }
-    }
-
-    while (1) {
-        printf("Enter phone: ");
-        fgets(newUser->phone, sizeof(newUser->phone), stdin);
-        newUser->phone[strcspn(newUser->phone, "\n")] = 0; 
-
-        if (strlen(newUser->phone) > 12) {
-            printf("Phone number is too long. Please enter again.\n");
-        } else if (!isValidPhoneNumber(newUser->phone)) {
-            printf("Phone number must contain only digits. Please enter again.\n");
-        } else {
-            break; 
-        }
-    }
-
-    printf("Enter homepage (domain or IP address): ");
+    printf("Enter homepage (IP or domain): ");
     fgets(newUser->homepage, sizeof(newUser->homepage), stdin);
-    newUser->homepage[strcspn(newUser->homepage, "\n")] = 0; 
+    newUser->homepage[strcspn(newUser->homepage, "\n")] = 0;
 
     User* current = head;
     while (current != NULL) {
@@ -131,27 +129,17 @@ void registerUser() {
             free(newUser);
             return;
         }
-        if (strcmp(current->email, newUser->email) == 0) {
-            printf("Email already exists\n");
-            free(newUser);
-            return;
-        }
-        if (strcmp(current->phone, newUser->phone) == 0) {
-            printf("Phone already exists\n");
-            free(newUser);
-            return;
-        }
         current = current->next;
     }
 
-    newUser->status = 1; 
+    newUser->status = 2; // Account starts as idle
     newUser->next = head;
     head = newUser;
     saveUsersToFile();
-    printf("Registered successfully.\n");
+    printf("Registered successfully. Activation required.\n");
 }
 
-
+// Sign-in function
 void signIn() {
     if (isLoggedIn) {
         printf("You are already logged in.\n");
@@ -161,7 +149,7 @@ void signIn() {
     char username[50], password[50];
     printf("Enter username: ");
     fgets(username, sizeof(username), stdin);
-    username[strcspn(username, "\n")] = 0; 
+    username[strcspn(username, "\n")] = 0;
 
     User* current = head;
     int attempts = 0;
@@ -172,16 +160,18 @@ void signIn() {
                 printf("Your account is blocked.\n");
                 return;
             }
+
             while (attempts < 3) {
                 printf("Enter password: ");
                 fgets(password, sizeof(password), stdin);
-                password[strcspn(password, "\n")] = 0; 
+                password[strcspn(password, "\n")] = 0;
 
-                if (strcmp(current->password, password) == 0) {
+                if (strcmp(password, current->password) == 0) {
                     printf("Welcome\n");
                     isLoggedIn = 1;
                     currentUser = current;
 
+                    // Log login history
                     FILE* historyFile = fopen(HISTORYFILE, "a");
                     time_t now = time(NULL);
                     struct tm *t = localtime(&now);
@@ -194,14 +184,14 @@ void signIn() {
                             t->tm_min, 
                             t->tm_sec);
                     fclose(historyFile);
-                    return; 
+                    return;
                 } else {
                     attempts++;
                     printf("Wrong password, %d tries left\n", 3 - attempts);
                 }
 
                 if (attempts == 3) {
-                    current->status = 0; 
+                    current->status = 0; // Block account
                     saveUsersToFile();
                     printf("Your account is blocked.\n");
                     return;
@@ -214,37 +204,157 @@ void signIn() {
     printf("Account does not exist.\n");
 }
 
+// Change password function
+void changePassword() {
+    if (!isLoggedIn) {
+        printf("You are not logged in.\n");
+        return;
+    }
 
-void viewHomepageDomain() {
+    char oldPassword[50], newPassword[50];
+
+    printf("Enter your current password: ");
+    fgets(oldPassword, sizeof(oldPassword), stdin);
+    oldPassword[strcspn(oldPassword, "\n")] = 0;
+
+    if (strcmp(currentUser->password, oldPassword) != 0) {
+        printf("Incorrect current password.\n");
+        return;
+    }
+
+    printf("Enter your new password: ");
+    fgets(newPassword, sizeof(newPassword), stdin);
+    newPassword[strcspn(newPassword, "\n")] = 0;
+
+    strcpy(currentUser->password, newPassword);
+    saveUsersToFile();
+    printf("Password updated successfully.\n");
+}
+
+// Activate account function
+void activateAccount() {
+    if (!isLoggedIn) {
+        printf("You need to sign in first to activate your account.\n");
+        return;
+    }
+
+    if (currentUser->status != 2) {
+        printf("Your account is already active or blocked.\n");
+        return;
+    }
+
+    char activationCode[50];
+    printf("Enter the activation code: ");
+    fgets(activationCode, sizeof(activationCode), stdin);
+    activationCode[strcspn(activationCode, "\n")] = 0;
+
+    if (strcmp(activationCode, correctActivationCode) == 0) {
+        currentUser->status = 1; // Activate account
+        saveUsersToFile();
+        printf("Account activated successfully.\n");
+    } else {
+        currentUser->status = 0; // Block account
+        saveUsersToFile();
+        printf("Incorrect activation code. Your account is now blocked.\n");
+    }
+}
+
+// Reset password function
+void resetPassword() {
+    char username[50];
+    printf("Enter your username: ");
+    fgets(username, sizeof(username), stdin);
+    username[strcspn(username, "\n")] = 0;
+
+    User* current = head;
+    while (current != NULL) {
+        if (strcmp(current->username, username) == 0) {
+            char verificationCode[50];
+            printf("Enter the verification code: ");
+            fgets(verificationCode, sizeof(verificationCode), stdin);
+            verificationCode[strcspn(verificationCode, "\n")] = 0;
+
+            if (strcmp(verificationCode, correctActivationCode) == 0) {
+                char newPassword[50];
+                printf("Enter your new password: ");
+                fgets(newPassword, sizeof(newPassword), stdin);
+                newPassword[strcspn(newPassword, "\n")] = 0;
+
+                strcpy(current->password, newPassword);
+                saveUsersToFile();
+                printf("Password reset successfully.\n");
+                return;
+            } else {
+                printf("Incorrect verification code.\n");
+                return;
+            }
+        }
+        current = current->next;
+    }
+    printf("User not found.\n");
+}
+
+// View login history function
+void viewLoginHistory() {
+    if (!isLoggedIn) {
+        printf("You are not logged in.\n");
+        return;
+    }
+
+    FILE* file = fopen(HISTORYFILE, "r");
+    if (file == NULL) {
+        printf("No login history found.\n");
+        return;
+    }
+
+    char line[200];
+    printf("Your login history:\n");
+    while (fgets(line, sizeof(line), file)) {
+        if (strstr(line, currentUser->username) != NULL) {
+            printf("%s", line);
+        }
+    }
+    fclose(file);
+}
+
+// Homepage with domain name function
+void HomepageWithDomainName() {
     if (!isLoggedIn) {
         printf("You are not logged in yet.\n");
         return;
     }
-    printf("Your homepage (domain name): %s\n", currentUser->homepage);
+
+    if (is_valid_domain_name_but_not_ip_address(currentUser->homepage)) {
+        printf("Homepage domain: %s\n", currentUser->homepage);
+    } else if (is_valid_ip_address(currentUser->homepage)) {
+        printf("Resolving domain from IP: %s\n", currentUser->homepage);
+        get_domain_from_ip(currentUser->homepage);
+    } else {
+        printf("Invalid homepage address.\n");
+    }
 }
 
-
-void viewHomepageIP() {
+// Homepage with IP address function
+void HomepageWithIpAddress() {
     if (!isLoggedIn) {
         printf("You are not logged in yet.\n");
         return;
     }
-    printf("Your homepage (IP address): %s\n", currentUser->homepage);
-}
 
-void signOut() {
-    if (!isLoggedIn) {
-        printf("You are not logged in yet.\n");
-        return;
+    if (is_valid_ip_address(currentUser->homepage)) {
+        printf("Homepage IP address: %s\n", currentUser->homepage);
+    } else if (is_valid_domain_name_but_not_ip_address(currentUser->homepage)) {
+        printf("Resolving IP from domain: %s\n", currentUser->homepage);
+        get_ip_from_domain(currentUser->homepage);
+    } else {
+        printf("Invalid homepage address.\n");
     }
-    printf("Goodbye %s!\n", currentUser->username);
-    currentUser = NULL;
-    isLoggedIn = 0;
 }
 
+// Main function
 int main() {
     loadUsersFromFile();
-    char input[10]; 
+    char input[10];
     int choice;
 
     do {
@@ -253,21 +363,20 @@ int main() {
         printf("1. Register\n");
         printf("2. Sign in\n");
         printf("3. Change password\n");
-        printf("4. Update account info\n");
+        printf("4. Activate account\n");
         printf("5. Reset password\n");
         printf("6. View login history\n");
-        printf("7. Homepage (domain)\n");
-        printf("8. Homepage (IP address)\n");
+        printf("7. Homepage with domain name\n");
+        printf("8. Homepage with IP address\n");
         printf("9. Sign out\n");
         printf("Your choice (1-9, other to quit): ");
-        
-        fgets(input, sizeof(input), stdin); 
 
-         if (sscanf(input, "%d", &choice) != 1 || choice < 1 || choice > 9) {
+        fgets(input, sizeof(input), stdin);
+        if (sscanf(input, "%d", &choice) != 1 || choice < 1 || choice > 9) {
             printf("Goodbye!\n");
-            break; 
+            break;
         }
-  
+
         switch (choice) {
             case 1:
                 registerUser();
@@ -276,30 +385,31 @@ int main() {
                 signIn();
                 break;
             case 3:
-                
+                changePassword();
                 break;
             case 4:
-     
+                activateAccount();
                 break;
             case 5:
-               
+                resetPassword();
                 break;
             case 6:
-           
+                viewLoginHistory();
                 break;
             case 7:
-                viewHomepageDomain();
+                HomepageWithDomainName();
                 break;
             case 8:
-                viewHomepageIP();
+                HomepageWithIpAddress();
                 break;
             case 9:
-                signOut();
+                isLoggedIn = 0;
+                printf("You have logged out.\n");
                 break;
         }
-
-    } while (1); 
+    } while (1);
 
     return 0;
 }
+
 
