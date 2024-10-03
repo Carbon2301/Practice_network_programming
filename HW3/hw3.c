@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <netdb.h>
 
-#define FILENAME "account.txt"
+#define FILENAME "nguoidung.txt"
 #define HISTORYFILE "history.txt"
 
 typedef struct User {
@@ -22,7 +22,7 @@ User* head = NULL;
 User* currentUser = NULL;
 int isLoggedIn = 0;
 
-// Function to load users from file into the linked list
+
 void loadUsersFromFile() {
     FILE* file = fopen(FILENAME, "r");
     if (file == NULL) {
