@@ -1,13 +1,27 @@
 CFLAGS = -c -Wall
 CC = gcc
+LIBS = -lm
 
-all: hw4
+all: client server
 
-hw4: hw4.o
-	${CC} hw4.o -o hw4
+debug: CFLAGS += -g
+debug: client server
 
-hw4.o: hw4.c
-	${CC} ${CFLAGS} hw4.c
+client: client1.o
+	${CC} client1.o -o client
+
+server: server1.o
+	${CC} server1.o -o server
+
+client1.o: client1.c
+	${CC} ${CFLAGS} client1.c
+
+server1.o: server1.c
+	${CC} ${CFLAGS} server1.c
 
 clean:
-	rm -f *.o *~ hw4
+	rm -f *.o *~ client server
+# Cu phap chay server : ./server 4000
+#Cu phap chay client : ./client 127.0.0.1 4000 
+# xoa cac file thuc thi chay lai tu dau dung lenh: make clean sau do chay lenh:make
+# Chuong trinh thiet ke cho 1 server va 1 client 
