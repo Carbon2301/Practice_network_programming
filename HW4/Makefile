@@ -21,7 +21,4 @@ server1.o: server1.c
 
 clean:
 	rm -f *.o *~ client server
-# Cu phap chay server : ./server 4000
-#Cu phap chay client : ./client 127.0.0.1 4000 
-# xoa cac file thuc thi chay lai tu dau dung lenh: make clean sau do chay lenh:make
-# Chuong trinh thiet ke cho 1 server va 1 client 
+
