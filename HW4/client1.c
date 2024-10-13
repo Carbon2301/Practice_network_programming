@@ -8,7 +8,7 @@
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
-        printf("Su dung: %s <IPAddress> <PortNumber>\n", argv[0]);
+        printf("Usage: %s <IPAddress> <PortNumber>\n", argv[0]);
         return 1;
     }
 
@@ -17,13 +17,14 @@ int main(int argc, char *argv[]) {
     char buffer[MAX_BUFFER];
     char username[50], password[50];
 
+    // Tao socket UDP
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        perror("Tao socket that bai");
+        perror("Socket creation failed");
         return 1;
     }
 
+    // Thiet lap dia chi cho server
     memset(&servaddr, 0, sizeof(servaddr));
-
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons(atoi(argv[2]));
     servaddr.sin_addr.s_addr = inet_addr(argv[1]);
@@ -31,71 +32,76 @@ int main(int argc, char *argv[]) {
     int n;
     socklen_t len = sizeof(servaddr);
 
-    // Giai doan 1: Dang nhap
+    // Giai doan 1: dang nhap
     while (1) {
-        printf("Nhap username: ");
+        printf("Enter username: ");
         scanf("%s", username);
-        printf("Nhap password: ");
+        printf("Enter password: ");
         scanf("%s", password);
 
         snprintf(buffer, sizeof(buffer), "%s %s", username, password);
         sendto(sockfd, (const char *)buffer, strlen(buffer), 0, (const struct sockaddr *)&servaddr, len);
 
+        // Nhan phan hoi tu server
         n = recvfrom(sockfd, (char *)buffer, MAX_BUFFER, 0, NULL, NULL);
-        buffer[n] = '\0';
+        buffer[n] = '\0';  // Ð?t ký t? k?t thúc chu?i
         printf("Server: %s\n", buffer);
 
         if (strcmp(buffer, "OK") == 0) {
-            printf("Dang nhap thanh cong!\n");
-            break;
+            printf("Login successful!\n");
+            break;  
         } else if (strcmp(buffer, "Account is blocked") == 0) {
-            printf("Tai khoan da bi khoa sau nhieu lan sai.\n");
+            printf("Account has been blocked after multiple failed attempts.\n");
             close(sockfd);
             return 1;
         } else if (strcmp(buffer, "Not OK") == 0) {
-            printf("Mat khau sai. Thu lai.\n");
+            printf("Incorrect password. Try again.\n");
         } else if (strcmp(buffer, "User not found") == 0) {
-            printf("Khong ton tai username.\n");
+            printf("Username does not exist.\n");
         } else if (strcmp(buffer, "Account not ready") == 0) {
-            printf("Tai khoan bi khoa. Lien he quan tri vien.\n");
+            printf("Account is blocked. Contact admin.\n");
             close(sockfd);
             return 1;
         }
     }
 
-    // Giai doan 2: Thuc hien cac hanh dong sau khi dang nhap
-    while (1) {
-        printf("Nhap lenh (change_password / homepage / bye): ");
-        scanf("%s", buffer);
+    
+    getchar();
 
-        // Gui lenh toi server
+    // Giai doan 2: xu li lenh sau dang nhap
+    while (1) {
+        printf("Enter command (change_password / homepage / bye): ");
+        fgets(buffer, sizeof(buffer), stdin); 
+
+        buffer[strcspn(buffer, "\n")] = 0;
+
         sendto(sockfd, (const char *)buffer, strlen(buffer), 0, (const struct sockaddr *)&servaddr, len);
 
-        // Xu ly lenh "bye"
         if (strcmp(buffer, "bye") == 0) {
             n = recvfrom(sockfd, (char *)buffer, MAX_BUFFER, 0, NULL, NULL);
             buffer[n] = '\0';
             printf("Server: %s\n", buffer);
             if (strcmp(buffer, "Goodbye") == 0) {
-                printf("Dang xuat thanh cong.\n");
+                printf("Logged out successfully.\n");
                 break;
             }
         }
-        // Xu ly lenh "homepage"
+        
         else if (strcmp(buffer, "homepage") == 0) {
             n = recvfrom(sockfd, (char *)buffer, MAX_BUFFER, 0, NULL, NULL);
             buffer[n] = '\0';
-            printf("Server: Trang chu cua ban la %s\n", buffer);
+            printf("Server: Your homepage is %s\n", buffer);
         }
-        // Xu ly lenh "change_password"
+
         else if (strcmp(buffer, "change_password") == 0) {
             char new_password[50];
-            printf("Nhap mat khau moi: ");
+            printf("Enter new password: ");
             scanf("%s", new_password);
+            getchar();  
 
             sendto(sockfd, (const char *)new_password, strlen(new_password), 0, (const struct sockaddr *)&servaddr, len);
 
-            // Nhan lai hai chuoi: chu cai va so
+            // Nhan lai 2 chuoi ki tu va so
             char letters[MAX_BUFFER], digits[MAX_BUFFER];
             n = recvfrom(sockfd, (char *)letters, MAX_BUFFER, 0, NULL, NULL);
             letters[n] = '\0';
@@ -105,12 +111,12 @@ int main(int argc, char *argv[]) {
             if (strcmp(letters, "Error: Invalid password") == 0) {
                 printf("Server: %s\n", letters);
             } else {
-                printf("Server: Doi mat khau thanh cong!\n");
-                printf("Chu cai: %s\n", letters);
-                printf("So: %s\n", digits);
+                printf("Server: Password changed successfully!\n");
+                printf("Letters: %s\n", letters);
+                printf("Digits: %s\n", digits);
             }
         } else {
-            printf("Lenh khong hop le. Thu lai.\n");
+            printf("Invalid command. Please try again.\n");
         }
     }
 

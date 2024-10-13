@@ -1,3 +1,2 @@
-hust hust123 1 google.com
-soict soict123 0 youtube.com
-guest hu1u2an3 1 facebook.com
+huuan hu1u2an3 1 google.com
+hust hust123 1 soict.hust.edu.vn
