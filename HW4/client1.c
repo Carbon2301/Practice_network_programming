@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
 
         // Nhan phan hoi tu server
         n = recvfrom(sockfd, (char *)buffer, MAX_BUFFER, 0, NULL, NULL);
-        buffer[n] = '\0';  // Ð?t ký t? k?t thúc chu?i
+        buffer[n] = '\0';  // Dat ki tu ket thuc chuoi
         printf("Server: %s\n", buffer);
 
         if (strcmp(buffer, "OK") == 0) {
@@ -123,4 +123,3 @@ int main(int argc, char *argv[]) {
     close(sockfd);
     return 0;
 }
-

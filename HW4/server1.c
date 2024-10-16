@@ -20,7 +20,7 @@ int check_credentials(char *username, char *password, Account *accounts, int num
     for (int i = 0; i < num_accounts; i++) {
         if (strcmp(username, accounts[i].username) == 0) {
             if (accounts[i].isBlocked == 0) {
-                return -2;  // Tài kho?n b? khóa
+                return -2;  // tai khoan bi khoa
             }
             if (strcmp(password, accounts[i].password) == 0) {
                 return 1;  // mk dung
@@ -68,10 +68,10 @@ void save_all_accounts(const char *filename, Account *accounts, int num_accounts
 int validate_password(char *password) {
     for (int i = 0; i < strlen(password); i++) {
         if (!isalnum(password[i])) {
-            return 0;  // Phát hi?n ký t? không h?p l?
+            return 0;  // Phat hien ki tu khong hop le
         }
     }
-    return 1;  // T?t c? ký t? h?p l?
+    return 1;  // tat ca ki tu hop le
 }
 
 
@@ -162,8 +162,8 @@ int main(int argc, char *argv[]) {
             } else if (result == 0) {
                 attempt_count++;
                 if (attempt_count >= MAX_ATTEMPTS) {
-                    accounts[current_account_index].isBlocked = 0;  // Khóa tài kho?n
-                    save_all_accounts("nguoidung.txt", accounts, num_accounts); // C?p nh?t file
+                    accounts[current_account_index].isBlocked = 0;  // Khoa tai khoan
+                    save_all_accounts("nguoidung.txt", accounts, num_accounts); // Cap nhat file
                     sendto(sockfd, "Account is blocked", strlen("Account is blocked"), 0, (const struct sockaddr *)&client_addr, len);
                     attempt_count = 0;
                 } else {
@@ -187,7 +187,7 @@ int main(int argc, char *argv[]) {
             } else if (strcmp(buffer, "homepage") == 0) {
                 sendto(sockfd, accounts[current_account_index].homepage, strlen(accounts[current_account_index].homepage), 0, (const struct sockaddr *)&client_addr, len);
             } else if (strcmp(buffer, "change_password") == 0) {
-                // Nh?n m?t kh?u m?i t? client
+                // Nhan mat khau tu client
                 n = recvfrom(sockfd, (char *)buffer, MAX_BUFFER, 0, (struct sockaddr *)&client_addr, &len);
                 buffer[n] = '\0';
 
@@ -198,7 +198,7 @@ int main(int argc, char *argv[]) {
 
                     // Cap nhat mk
                     strcpy(accounts[current_account_index].password, buffer);
-                    save_all_accounts("nguoidung.txt", accounts, num_accounts); // C?p nh?t file v?i m?t kh?u m?i
+                    save_all_accounts("nguoidung.txt", accounts, num_accounts); 
 
                     // Gui lai chuoi chu cai va chu so
                     sendto(sockfd, letters, strlen(letters), 0, (const struct sockaddr *)&client_addr, len);
