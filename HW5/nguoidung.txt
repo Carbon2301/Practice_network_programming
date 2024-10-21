@@ -1,4 +1,4 @@
-giang giang123 1 8.8.8.8
-hust hust123 1 facebook.com
-huuan huuan123 1 google.com
 an huuan 0 facebook.com
+huuan huuan123 1 google.com
+hust hust123 1 facebook.com
+giang giang123 0 8.8.8.8

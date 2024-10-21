@@ -68,6 +68,34 @@ User* searchUser(char *username) {
     return NULL;
 }
 
+// Hàm ki?m tra tr?ng thái tài kho?n c?a ngu?i dùng trong file
+int checkUserStatus(char *username) {
+    FILE *file = fopen(FILENAME, "r");
+    if (file == NULL) {
+        perror("Could not open file");
+        exit(1);
+    }
+
+    char line[BUFF_SIZE];
+    char fileUsername[50];
+    char password[50];
+    int status;
+    char homepage[100];
+
+    // Ð?c t?ng dòng trong file
+    while (fgets(line, sizeof(line), file)) {
+        sscanf(line, "%s %s %d %s", fileUsername, password, &status, homepage);
+        if (strcmp(fileUsername, username) == 0) {
+            fclose(file);
+            return status;  // Tr? v? status c?a tài kho?n
+        }
+    }
+
+    fclose(file);
+    return -1;  // Tr? v? -1 n?u không tìm th?y username
+}
+
+
 // Hàm ki?m tra m?t kh?u
 bool checkPassword(User *user, char *password) {
     if (strcmp(user->password, password) == 0) {
@@ -76,81 +104,75 @@ bool checkPassword(User *user, char *password) {
     return false;
 }
 
-// Hàm tách chu?i thành hai chu?i: m?t ch? ch?a ch? cái và m?t ch? ch?a ch? s?
-void splitPassword(const char* password, char* letters, char* digits) {
-    int letterIdx = 0, digitIdx = 0;
-    for (int i = 0; i < strlen(password); i++) {
-        if (isalpha(password[i])) {
-            letters[letterIdx++] = password[i];
-        } else if (isdigit(password[i])) {
-            digits[digitIdx++] = password[i];
-        }
-    }
-    letters[letterIdx] = '\0';  // K?t thúc chu?i ch?
-    digits[digitIdx] = '\0';    // K?t thúc chu?i s?
-}
-
-// Hàm c?p nh?t m?t kh?u m?i và tr? v? các chu?i ký t? và ch? s?
-void updatePassword(User *user, char *newPassword, int connfd) {
-    strcpy(user->password, newPassword);
-    saveUsersToFile();
-
-    char letters[BUFF_SIZE] = {0};
-    char digits[BUFF_SIZE] = {0};
-
-    // Tách chu?i thành ký t? và ch? s?
-    splitPassword(newPassword, letters, digits);
-
-    // G?i ph?n h?i v? client: hai chu?i letters và digits
-    char response[BUFF_SIZE];
-    snprintf(response, sizeof(response), "Letters: %s, Digits: %s", letters, digits);
-    send(connfd, response, strlen(response), 0);
-}
-
-// Hàm x? lý client
 void handleClient(int connfd) {
     char buff[BUFF_SIZE];
     int rcvBytes, sendBytes;
     User *currentUser = NULL;
+    int failedAttempts = 0;  // Ð?m s? l?n nh?p sai m?t kh?u
 
-    // Nh?n username t? client
-    rcvBytes = recv(connfd, buff, BUFF_SIZE, 0);
-    if (rcvBytes <= 0) {
-        perror("Error receiving username");
-        close(connfd);
-        return;
+    while (1) {
+        // Nh?n username t? client
+        rcvBytes = recv(connfd, buff, BUFF_SIZE, 0);
+        if (rcvBytes <= 0) {
+            perror("Error receiving username");
+            close(connfd);
+            return;
+        }
+        buff[rcvBytes] = '\0'; // K?t thúc chu?i
+
+        // Ki?m tra tr?ng thái tài kho?n c?a ngu?i dùng
+        int status = checkUserStatus(buff);
+        if (status == -1) {
+            // Không tìm th?y user
+            sendBytes = send(connfd, "Cannot find account", strlen("Cannot find account"), 0);
+        } else if (status == 0) {
+            // Tài kho?n b? khóa
+            sendBytes = send(connfd, "Account is blocked", strlen("Account is blocked"), 0);
+            continue;  // Yêu c?u nh?p l?i username
+        } else {
+            // Tài kho?n h?p l?
+            sendBytes = send(connfd, "USER FOUND", strlen("USER FOUND"), 0);
+            break;  // Thoát vòng l?p, ti?n hành ki?m tra m?t kh?u
+        }
     }
-    buff[rcvBytes] = '\0'; // K?t thúc chu?i
 
-    currentUser = searchUser(buff);
+    currentUser = searchUser(buff);  // Tìm ki?m ngu?i dùng trong danh sách
     if (currentUser == NULL) {
-        // Không tìm th?y user
-        sendBytes = send(connfd, "Cannot find account", strlen("Cannot find account"), 0);
-        close(connfd);
-        return;
-    } else if (currentUser->status == 0) {
-        // Tài kho?n b? khóa
-        sendBytes = send(connfd, "Account is blocked", strlen("Account is blocked"), 0);
-        close(connfd);
-        return;
-    } else {
-        // Tài kho?n h?p l?
-        sendBytes = send(connfd, "USER FOUND", strlen("USER FOUND"), 0);
-    }
-
-    // Nh?n m?t kh?u t? client
-    rcvBytes = recv(connfd, buff, BUFF_SIZE, 0);
-    if (rcvBytes <= 0) {
-        perror("Error receiving password");
         close(connfd);
         return;
     }
-    buff[rcvBytes] = '\0'; // K?t thúc chu?i
 
-    if (checkPassword(currentUser, buff)) {
-        // M?t kh?u dúng, cho phép x? lý các tùy ch?n trong menu
-        sendBytes = send(connfd, "OK", strlen("OK"), 0);
+    // Nh?n m?t kh?u t? client và ki?m tra
+    while (failedAttempts < 3) {
+        rcvBytes = recv(connfd, buff, BUFF_SIZE, 0);
+        if (rcvBytes <= 0) {
+            perror("Error receiving password");
+            close(connfd);
+            return;
+        }
+        buff[rcvBytes] = '\0'; // K?t thúc chu?i
 
+        if (checkPassword(currentUser, buff)) {
+            // M?t kh?u dúng, cho phép x? lý các tùy ch?n trong menu
+            sendBytes = send(connfd, "OK", strlen("OK"), 0);
+            break;  // Ðang nh?p thành công, thoát vòng l?p
+        } else {
+            failedAttempts++;
+            if (failedAttempts < 3) {
+                sendBytes = send(connfd, "Password is incorrect. Try again", strlen("Password is incorrect. Try again"), 0);
+            } else {
+                // Khóa tài kho?n sau 3 l?n sai m?t kh?u
+                currentUser->status = 0;
+                saveUsersToFile();  // C?p nh?t thông tin tài kho?n vào file
+                sendBytes = send(connfd, "Account is blocked due to 3 failed attempts", strlen("Account is blocked due to 3 failed attempts"), 0);
+                close(connfd);
+                return;  // Thoát chuong trình
+            }
+        }
+    }
+
+    if (failedAttempts < 3) {
+        // X? lý ti?p t?c sau khi dang nh?p thành công
         while (1) {
             // Nh?n yêu c?u t? client
             rcvBytes = recv(connfd, buff, BUFF_SIZE, 0);
@@ -173,15 +195,43 @@ void handleClient(int connfd) {
                 updatePassword(currentUser, buff, connfd);
             }
         }
-
-    } else {
-        // M?t kh?u sai
-        sendBytes = send(connfd, "Password is incorrect", strlen("Password is incorrect"), 0);
-        close(connfd);
     }
 
     close(connfd);
 }
+
+// Hàm tách chu?i thành hai chu?i: m?t chu?i ch?a ch? cái và m?t chu?i ch?a ch? s?
+void splitPassword(const char* password, char* letters, char* digits) {
+    int letterIdx = 0, digitIdx = 0;
+    for (int i = 0; i < strlen(password); i++) {
+        if (isalpha(password[i])) {
+            letters[letterIdx++] = password[i];
+        } else if (isdigit(password[i])) {
+            digits[digitIdx++] = password[i];
+        }
+    }
+    letters[letterIdx] = '\0';  // K?t thúc chu?i ch? cái
+    digits[digitIdx] = '\0';    // K?t thúc chu?i ch? s?
+}
+
+// Hàm c?p nh?t m?t kh?u m?i và tr? v? hai chu?i ký t? và ch? s?
+void updatePassword(User *user, char *newPassword, int connfd) {
+    // C?p nh?t m?t kh?u m?i cho user
+    strcpy(user->password, newPassword);
+    saveUsersToFile();  // Luu thông tin user vào file
+
+    char letters[BUFF_SIZE] = {0};
+    char digits[BUFF_SIZE] = {0};
+
+    // Tách chu?i m?t kh?u thành chu?i ch? cái và chu?i ch? s?
+    splitPassword(newPassword, letters, digits);
+
+    // G?i ph?n h?i v? client: hai chu?i letters và digits
+    char response[BUFF_SIZE];
+    snprintf(response, sizeof(response), "Letters: %s, Digits: %s", letters, digits);
+    send(connfd, response, strlen(response), 0);
+}
+
 
 int main(int argc, char *argv[]) {
     int listenfd, connfd;
