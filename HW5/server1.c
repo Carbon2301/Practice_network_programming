@@ -5,7 +5,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <stdbool.h>
-
+#include <ctype.h> 
 #define BUFF_SIZE 255
 #define FILENAME "nguoidung.txt"
 

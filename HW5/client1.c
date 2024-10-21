@@ -5,7 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdbool.h>
-
+#include <ctype.h> 
 #define BUFF_SIZE 255
 
 char buff[BUFF_SIZE];
@@ -21,7 +21,7 @@ void inputUserName() {
             printf("Exit programming\n");
             exit(1);
         }
-        buff[strlen(buff) - 1] = '\0'; // Xoa ky tu newline
+        buff[strlen(buff) - 1] = '\0'; // Xóa ký t? newline '\n'
 
         bool containsSpace = false;
         for (int i = 0; i < strlen(buff); i++) {
@@ -50,7 +50,7 @@ void inputPassword() {
             printf("Exit programming\n");
             exit(1);
         }
-        buff[strlen(buff) - 1] = '\0'; // Xoa ky tu newline '\n'
+        buff[strlen(buff) - 1] = '\0'; // Xóa ký t? newline '\n'
 
         bool containsSpace = false;
         for (int i = 0; i < strlen(buff); i++) {
@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
     
     serv_IP = argv[1];
 
-    // Kiem tra dia chi IP hop le
+    // Ki?m tra d?a ch? IP h?p l?
     struct in_addr ipv4;
     if (inet_pton(AF_INET, serv_IP, &ipv4) != 1) {
         fprintf(stderr, "Invalid IPv4 address: %s\n", serv_IP);
@@ -118,25 +118,25 @@ int main(int argc, char *argv[]) {
 
     serv_PORT = atoi(argv[2]);
 
-    // Kiem tra cong hop le
+    // Ki?m tra c?ng h?p l?
     if (!isValidPort(argv[2])) {
         fprintf(stderr, "Invalid port number: %s\n", argv[2]);
         exit(1);
     }
 
-    // Tao socket TCP
+    // T?o socket TCP
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("Socket creation failed");
         return 0;
     }
 
-    // Dinh nghia dia chi server
+    // Ð?nh nghia d?a ch? server
     bzero(&servaddr, sizeof(servaddr));
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = inet_addr(serv_IP);
     servaddr.sin_port = htons(serv_PORT);
 
-    // Ket noi toi server
+    // K?t n?i t?i server
     if (connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
         perror("Connection failed");
         return 0;
@@ -198,7 +198,7 @@ int main(int argc, char *argv[]) {
         while (isLogin == 1) {
             displayMenu();
             fgets(buff, BUFF_SIZE, stdin);
-            buff[strlen(buff) - 1] = '\0';  // xoa ky tu newline
+            buff[strlen(buff) - 1] = '\0';  // Xóa ký t? newline '\n'
 
             int choice = atoi(buff);
 
@@ -206,7 +206,7 @@ int main(int argc, char *argv[]) {
                 // Change password
                 printf("Send new password to server: ");
                 fgets(buff, BUFF_SIZE, stdin);
-                buff[strlen(buff) - 1] = '\0';  // xoa ky tu newwline
+                buff[strlen(buff) - 1] = '\0';  // Xóa ký t? newline '\n'
 
                 len = strlen(buff);
                 sendBytes = send(sockfd, buff, len, 0);
@@ -215,7 +215,7 @@ int main(int argc, char *argv[]) {
                     return 0;
                 }
 
-                // Nhan phan hoi server sau khi thay doi mat khau
+                // Nh?n ph?n h?i t? server sau khi thay d?i m?t kh?u
                 rcvBytes = recv(sockfd, buff, BUFF_SIZE, 0);
                 if (rcvBytes < 0) {
                     perror("Error receiving response");
@@ -226,7 +226,7 @@ int main(int argc, char *argv[]) {
                 printf("Server says: %s\n", buff);
 
             } else if (choice == 2) {
-                // Yeu cau homepage tu server
+                // Yêu c?u homepage t? server
                 strcpy(buff, "homepage");
                 sendBytes = send(sockfd, buff, strlen(buff), 0);
                 if (sendBytes < 0) {
@@ -234,7 +234,7 @@ int main(int argc, char *argv[]) {
                     return 0;
                 }
 
-                // Nhan homepage tu server
+                // Nh?n homepage t? server
                 rcvBytes = recv(sockfd, buff, BUFF_SIZE, 0);
                 if (rcvBytes < 0) {
                     perror("Error receiving homepage");
@@ -245,7 +245,7 @@ int main(int argc, char *argv[]) {
                 printf("Homepage: %s\n", buff);
 
             } else if (choice == 3) {
-                // Gui yeu cau thoat
+                // G?i yêu c?u thoát
                 strcpy(buff, "bye");
                 sendBytes = send(sockfd, buff, strlen(buff), 0);
                 if (sendBytes < 0) {
@@ -254,10 +254,10 @@ int main(int argc, char *argv[]) {
                 }
 
                 printf("Goodbye!\n");
-                close(sockfd); 
+                close(sockfd);  // Ðóng k?t n?i và thoát chuong trình
                 exit(0);
             } else {
-                
+                // Hi?n th? l?i n?u ngu?i dùng nh?p không dúng l?a ch?n
                 printf("Invalid choice, please try again.\n");
             }
         }
