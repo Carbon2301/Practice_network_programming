@@ -26,7 +26,6 @@ typedef struct ThreadArgs {
 pthread_mutex_t userLock = PTHREAD_MUTEX_INITIALIZER;
 User* head = NULL;
 
-// Load user accounts from file
 void loadUsersFromFile() {
     FILE* file = fopen(FILENAME, "r");
     if (!file) {
@@ -50,7 +49,6 @@ void loadUsersFromFile() {
     fclose(file);
 }
 
-// Save user accounts to file
 void saveUsersToFile() {
     FILE* file = fopen(FILENAME, "w");
     if (!file) {
@@ -69,7 +67,6 @@ void saveUsersToFile() {
     fclose(file);
 }
 
-// Search for a user by username
 User* searchUser(char* username) {
     pthread_mutex_lock(&userLock);
     User* current = head;
@@ -84,7 +81,6 @@ User* searchUser(char* username) {
     return NULL;
 }
 
-// Thread handler for each client
 void* clientHandler(void* args) {
     ThreadArgs* tArgs = (ThreadArgs*)args;
     int connfd = tArgs->connfd;
