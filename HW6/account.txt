@@ -1,4 +1,5 @@
-huuan huuan 1
-an huuan 0
+khai khai 0
 giang giang 1
-khai khai 1
+an huuan 0
+huuan huuan 1
+hung hung 1

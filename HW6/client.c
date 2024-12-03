@@ -167,8 +167,8 @@ int main(int argc, char *argv[]) {
             if (strcmp(buff, "bye") == 0) {
                 send(sockfd, buff, strlen(buff), 0);
                 printf("Goodbye\n");
-                isLogin = 0; // Reset to enter username if needed
-                break;
+                close(sockfd);  
+                exit(0);  
             }
 
             sendBytes = send(sockfd, buff, strlen(buff), 0);
