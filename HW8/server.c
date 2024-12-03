@@ -11,22 +11,25 @@
 #define MAX_CLIENTS 100
 #define FILENAME "account.txt"
 
+// Cấu trúc lưu thông tin tài khoản
 typedef struct {
     char username[BUFF_SIZE];
     char password[BUFF_SIZE];
     int status; // 1: active, 0: blocked
 } Account;
 
+// Cấu trúc client
 typedef struct {
     int fd;
     char username[BUFF_SIZE];
-    int loginStatus; 
+    int loginStatus; // 0: chưa đăng nhập, 1: nhập username, 2: đăng nhập thành công
     bool active;
 } ClientInfo;
 
 ClientInfo clients[MAX_CLIENTS];
 int clientCount = 0;
 
+// Khởi tạo danh sách client
 void initClients() {
     for (int i = 0; i < MAX_CLIENTS; i++) {
         clients[i].fd = -1;
@@ -34,6 +37,7 @@ void initClients() {
     }
 }
 
+// Đọc danh sách tài khoản từ file
 int loadAccounts(Account accounts[], int *count) {
     FILE *file = fopen(FILENAME, "r");
     if (!file) {
@@ -53,6 +57,7 @@ int loadAccounts(Account accounts[], int *count) {
     return 0;
 }
 
+// Tìm tài khoản trong danh sách
 int findAccount(Account accounts[], int count, const char *username) {
     for (int i = 0; i < count; i++) {
         if (strcmp(accounts[i].username, username) == 0) {
@@ -62,6 +67,7 @@ int findAccount(Account accounts[], int count, const char *username) {
     return -1;
 }
 
+// Cập nhật mật khẩu trong file và đồng bộ lại danh sách
 int updatePassword(Account accounts[], int *count, const char *username, const char *newPassword) {
     FILE *file = fopen(FILENAME, "r+");
     if (!file) {
@@ -74,8 +80,9 @@ int updatePassword(Account accounts[], int *count, const char *username, const c
     char line[BUFF_SIZE];
     int updated = 0;
 
+    // Đọc toàn bộ file vào bộ nhớ
     while (fgets(line, sizeof(line), file)) {
-        line[strcspn(line, "\n")] = '\0'; 
+        line[strcspn(line, "\n")] = '\0'; // Xóa newline
         char uname[BUFF_SIZE], pass[BUFF_SIZE];
         int status;
         sscanf(line, "%s %s %d", uname, pass, &status);
@@ -88,6 +95,7 @@ int updatePassword(Account accounts[], int *count, const char *username, const c
         localCount++;
     }
 
+    // Ghi lại toàn bộ file
     freopen(FILENAME, "w", file);
     for (int i = 0; i < localCount; i++) {
         fprintf(file, "%s\n", lines[i]);
@@ -107,13 +115,14 @@ int updatePassword(Account accounts[], int *count, const char *username, const c
 }
 
 // Xử lý đầu vào từ client
-void handleClientInput(int index, Account accounts[], int *accountCount) {
+void handleClientInput(int index, Account accounts[], int *accountCount, fd_set *masterSet) {
     char buff[BUFF_SIZE];
     int bytesRead = recv(clients[index].fd, buff, BUFF_SIZE, 0);
 
     if (bytesRead <= 0) {
         printf("Client %d disconnected\n", index);
         close(clients[index].fd);
+        FD_CLR(clients[index].fd, masterSet);  // Loại bỏ client khỏi masterSet
         clients[index].active = false;
         clientCount--;
         return;
@@ -123,7 +132,7 @@ void handleClientInput(int index, Account accounts[], int *accountCount) {
     printf("Received from client %d: %s\n", index, buff);
 
     if (clients[index].loginStatus == 0) {
-     
+        // Nhập username
         int accountIndex = findAccount(accounts, *accountCount, buff);
         if (accountIndex == -1) {
             send(clients[index].fd, "Username not found", strlen("Username not found"), 0);
@@ -135,7 +144,7 @@ void handleClientInput(int index, Account accounts[], int *accountCount) {
             clients[index].loginStatus = 1;
         }
     } else if (clients[index].loginStatus == 1) {
-   
+        // Nhập password
         int accountIndex = findAccount(accounts, *accountCount, clients[index].username);
         if (accountIndex != -1 && strcmp(accounts[accountIndex].password, buff) == 0) {
             send(clients[index].fd, "Login success", strlen("Login success"), 0);
@@ -144,16 +153,17 @@ void handleClientInput(int index, Account accounts[], int *accountCount) {
             send(clients[index].fd, "Wrong password", strlen("Wrong password"), 0);
         }
     } else if (clients[index].loginStatus == 2) {
-
+        // Menu
         if (strcmp(buff, "1") == 0) {
             send(clients[index].fd, "Send new password", strlen("Send new password"), 0);
         } else if (strcmp(buff, "bye") == 0) {
             send(clients[index].fd, "Goodbye", strlen("Goodbye"), 0);
             close(clients[index].fd);
+            FD_CLR(clients[index].fd, masterSet);  // Loại bỏ client khỏi masterSet
             clients[index].active = false;
             clientCount--;
         } else {
-
+            // Cập nhật mật khẩu
             if (updatePassword(accounts, accountCount, clients[index].username, buff) == 0) {
                 send(clients[index].fd, "Password updated", strlen("Password updated"), 0);
             } else {
@@ -225,7 +235,7 @@ int main(int argc, char *argv[]) {
                 } else {
                     for (int j = 0; j < MAX_CLIENTS; j++) {
                         if (clients[j].fd == i) {
-                            handleClientInput(j, accounts, &accountCount);
+                            handleClientInput(j, accounts, &accountCount, &masterSet);
                             break;
                         }
                     }
