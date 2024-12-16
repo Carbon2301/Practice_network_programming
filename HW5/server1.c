@@ -9,7 +9,7 @@
 #define BUFF_SIZE 255
 #define FILENAME "nguoidung.txt"
 
-// C?u trúc luu thông tin ngu?i dùng
+
 typedef struct User {
     char username[50];
     char password[50];
@@ -20,7 +20,7 @@ typedef struct User {
 
 User *head = NULL;
 
-// Hàm d?c thông tin ngu?i dùng t? file
+
 void loadUsersFromFile() {
     FILE *file = fopen(FILENAME, "r");
     if (file == NULL) {
@@ -39,7 +39,6 @@ void loadUsersFromFile() {
     fclose(file);
 }
 
-// Hàm ghi l?i thông tin ngu?i dùng vào file
 void saveUsersToFile() {
     FILE *file = fopen(FILENAME, "w");
     if (file == NULL) {
@@ -56,7 +55,7 @@ void saveUsersToFile() {
     fclose(file);
 }
 
-// Hàm tìm ki?m ngu?i dùng theo username
+// HÃ m tÃ¬m kiáº¿m ngÆ°á»i dÃ¹ng theo username
 User* searchUser(char *username) {
     User *current = head;
     while (current != NULL) {
@@ -68,7 +67,7 @@ User* searchUser(char *username) {
     return NULL;
 }
 
-// Hàm ki?m tra tr?ng thái tài kho?n c?a ngu?i dùng trong file
+
 int checkUserStatus(char *username) {
     FILE *file = fopen(FILENAME, "r");
     if (file == NULL) {
@@ -82,21 +81,20 @@ int checkUserStatus(char *username) {
     int status;
     char homepage[100];
 
-    // Ð?c t?ng dòng trong file
+
     while (fgets(line, sizeof(line), file)) {
         sscanf(line, "%s %s %d %s", fileUsername, password, &status, homepage);
         if (strcmp(fileUsername, username) == 0) {
             fclose(file);
-            return status;  // Tr? v? status c?a tài kho?n
+            return status; 
         }
     }
 
     fclose(file);
-    return -1;  // Tr? v? -1 n?u không tìm th?y username
+    return -1;  
 }
 
 
-// Hàm ki?m tra m?t kh?u
 bool checkPassword(User *user, char *password) {
     if (strcmp(user->password, password) == 0) {
         return true;
@@ -108,41 +106,38 @@ void handleClient(int connfd) {
     char buff[BUFF_SIZE];
     int rcvBytes, sendBytes;
     User *currentUser = NULL;
-    int failedAttempts = 0;  // Ð?m s? l?n nh?p sai m?t kh?u
+    int failedAttempts = 0;  
 
     while (1) {
-        // Nh?n username t? client
+
         rcvBytes = recv(connfd, buff, BUFF_SIZE, 0);
         if (rcvBytes <= 0) {
             perror("Error receiving username");
             close(connfd);
             return;
         }
-        buff[rcvBytes] = '\0'; // K?t thúc chu?i
+        buff[rcvBytes] = '\0'; 
 
-        // Ki?m tra tr?ng thái tài kho?n c?a ngu?i dùng
+
         int status = checkUserStatus(buff);
         if (status == -1) {
-            // Không tìm th?y user
             sendBytes = send(connfd, "Cannot find account", strlen("Cannot find account"), 0);
         } else if (status == 0) {
-            // Tài kho?n b? khóa
             sendBytes = send(connfd, "Account is blocked", strlen("Account is blocked"), 0);
-            continue;  // Yêu c?u nh?p l?i username
+            continue;  
         } else {
-            // Tài kho?n h?p l?
             sendBytes = send(connfd, "USER FOUND", strlen("USER FOUND"), 0);
-            break;  // Thoát vòng l?p, ti?n hành ki?m tra m?t kh?u
+            break;  
         }
     }
 
-    currentUser = searchUser(buff);  // Tìm ki?m ngu?i dùng trong danh sách
+    currentUser = searchUser(buff); 
     if (currentUser == NULL) {
         close(connfd);
         return;
     }
 
-    // Nh?n m?t kh?u t? client và ki?m tra
+
     while (failedAttempts < 3) {
         rcvBytes = recv(connfd, buff, BUFF_SIZE, 0);
         if (rcvBytes <= 0) {
@@ -150,31 +145,26 @@ void handleClient(int connfd) {
             close(connfd);
             return;
         }
-        buff[rcvBytes] = '\0'; // K?t thúc chu?i
-
+        buff[rcvBytes] = '\0';
         if (checkPassword(currentUser, buff)) {
-            // M?t kh?u dúng, cho phép x? lý các tùy ch?n trong menu
             sendBytes = send(connfd, "OK", strlen("OK"), 0);
-            break;  // Ðang nh?p thành công, thoát vòng l?p
+            break;  
         } else {
             failedAttempts++;
             if (failedAttempts < 3) {
                 sendBytes = send(connfd, "Password is incorrect. Try again", strlen("Password is incorrect. Try again"), 0);
             } else {
-                // Khóa tài kho?n sau 3 l?n sai m?t kh?u
                 currentUser->status = 0;
-                saveUsersToFile();  // C?p nh?t thông tin tài kho?n vào file
+                saveUsersToFile();  
                 sendBytes = send(connfd, "Account is blocked due to 3 failed attempts", strlen("Account is blocked due to 3 failed attempts"), 0);
                 close(connfd);
-                return;  // Thoát chuong trình
+                return;  
             }
         }
     }
 
     if (failedAttempts < 3) {
-        // X? lý ti?p t?c sau khi dang nh?p thành công
         while (1) {
-            // Nh?n yêu c?u t? client
             rcvBytes = recv(connfd, buff, BUFF_SIZE, 0);
             if (rcvBytes <= 0) {
                 perror("Error receiving option");
@@ -184,14 +174,12 @@ void handleClient(int connfd) {
             buff[rcvBytes] = '\0';
 
             if (strcmp(buff, "homepage") == 0) {
-                // G?i homepage c?a ngu?i dùng
                 send(connfd, currentUser->homepage, strlen(currentUser->homepage), 0);
             } else if (strcmp(buff, "bye") == 0) {
-                // Thoát kh?i chuong trình
                 printf("User %s disconnected.\n", currentUser->username);
                 break;
             } else {
-                // X? lý d?i m?t kh?u
+
                 updatePassword(currentUser, buff, connfd);
             }
         }
@@ -200,7 +188,7 @@ void handleClient(int connfd) {
     close(connfd);
 }
 
-// Hàm tách chu?i thành hai chu?i: m?t chu?i ch?a ch? cái và m?t chu?i ch?a ch? s?
+// HÃ m tÃ¡ch 2 chuá»—i chá»¯ cÃ¡i vÃ  chá»¯ sá»‘
 void splitPassword(const char* password, char* letters, char* digits) {
     int letterIdx = 0, digitIdx = 0;
     for (int i = 0; i < strlen(password); i++) {
@@ -210,23 +198,21 @@ void splitPassword(const char* password, char* letters, char* digits) {
             digits[digitIdx++] = password[i];
         }
     }
-    letters[letterIdx] = '\0';  // K?t thúc chu?i ch? cái
-    digits[digitIdx] = '\0';    // K?t thúc chu?i ch? s?
+    letters[letterIdx] = '\0';  
+    digits[digitIdx] = '\0';    
 }
 
-// Hàm c?p nh?t m?t kh?u m?i và tr? v? hai chu?i ký t? và ch? s?
+
 void updatePassword(User *user, char *newPassword, int connfd) {
-    // C?p nh?t m?t kh?u m?i cho user
+
     strcpy(user->password, newPassword);
-    saveUsersToFile();  // Luu thông tin user vào file
+    saveUsersToFile();  
 
     char letters[BUFF_SIZE] = {0};
     char digits[BUFF_SIZE] = {0};
 
-    // Tách chu?i m?t kh?u thành chu?i ch? cái và chu?i ch? s?
     splitPassword(newPassword, letters, digits);
 
-    // G?i ph?n h?i v? client: hai chu?i letters và digits
     char response[BUFF_SIZE];
     snprintf(response, sizeof(response), "Letters: %s, Digits: %s", letters, digits);
     send(connfd, response, strlen(response), 0);
@@ -245,29 +231,24 @@ int main(int argc, char *argv[]) {
 
     short serv_PORT = atoi(argv[1]);
 
-    // T?i danh sách ngu?i dùng t? file
     loadUsersFromFile();
 
-    // T?o socket
     if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("Socket creation failed");
         exit(1);
     }
 
-    // C?u hình d?a ch? server
     bzero(&servaddr, sizeof(servaddr));
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servaddr.sin_port = htons(serv_PORT);
 
-    // Bind socket
     if (bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
         perror("Bind failed");
         close(listenfd);
         exit(1);
     }
 
-    // L?ng nghe k?t n?i
     if (listen(listenfd, 5) < 0) {
         perror("Listen failed");
         close(listenfd);
@@ -276,7 +257,6 @@ int main(int argc, char *argv[]) {
 
     printf("Server is running on port %d\n", serv_PORT);
 
-    // Ch?p nh?n và x? lý k?t n?i
     while (1) {
         connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &cliaddr_len);
         if (connfd < 0) {
@@ -284,11 +264,9 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
-        // X? lý client
         handleClient(connfd);
     }
 
-    // Gi?i phóng tài nguyên
     close(listenfd);
     return 0;
 }

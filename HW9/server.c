@@ -8,22 +8,22 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <string.h>
-#include <sys/select.h>
+#include <poll.h>
 
 #define FILENAME "account.txt"
 #define BUFF_SIZE 255
 #define BACKLOG 20
-
+ struct pollfd fds[BACKLOG + 1];
 fd_set readfds, allset;
 socklen_t clilen;
-int nready, client[FD_SETSIZE];
+int nready, client[BACKLOG];
 char buff[BUFF_SIZE];
 char recvBuff[BUFF_SIZE];
 char done[BUFF_SIZE];
 char username[50], password[50];
 unsigned int len = sizeof(struct sockaddr_in);
 short serv_PORT;
-
+ int useClient = 0;
 
 typedef struct User {
     char username[50];
@@ -66,6 +66,7 @@ void loadUsersFromFile() {
     fclose(file);
 }
 
+/*ghi thong tin ra file*/
 void saveUsersToFile() {
     FILE *file = fopen(FILENAME, "w");
     if (file == NULL) {
@@ -123,18 +124,20 @@ void checkWrongAttempts(User *user, char *enteredPassword, int connfd, int i) {
         saveUsersToFile();
         sendSize = send(connfd, "Password is incorrect. Account is blocked\n", BUFF_SIZE, 0);
         if (sendSize <= 0) {
-            FD_CLR(connfd, &allset);
-            close(connfd);
-            client[i] = -1;
-            return;
+             close(connfd);
+        fds[i].fd = 0;
+        fds[i].events = 0;
+        fds[i].revents = 0;
+        useClient--; 
         }
     } else {
         sendSize = send(connfd, "NOT OK", BUFF_SIZE, 0);
         if (sendSize <= 0) {
-            FD_CLR(connfd, &allset);
             close(connfd);
-            client[i] = -1;
-            return;
+        fds[i].fd = 0;
+        fds[i].events = 0;
+        fds[i].revents = 0;
+        useClient--; 
         }
     }
 }
@@ -153,7 +156,7 @@ User *searchUser(char *username) {
 int isValidPort(const char *portStr) {
     for (int i = 0; portStr[i] != '\0'; ++i) {
         if (!isdigit(portStr[i])) {
-            return 0; 
+            return 0;  
         }
     }
 
@@ -178,15 +181,18 @@ void handleDataFromClient(int connfd, int i) {
     int rcvSize = recv(connfd, recvBuff, BUFF_SIZE, 0); 
     if (rcvSize <= 0) {
         printf("Client %d disconnected\n", connfd); 
-        FD_CLR(connfd, &readfds);  
-
+       
         close(connfd);
+        fds[i].fd = 0;
+        fds[i].events = 0;
+        fds[i].revents = 0;
+        useClient--;                                
         client[i] = -1;
         flag[i] = 0;
         error[i] = 0;
         isLoggedIn[i] = 0;
         currentUser[i] = NULL;
-
+                        
         return;
     }
 
@@ -200,38 +206,42 @@ void handleDataFromClient(int connfd, int i) {
             if (currentUser[i]->status == 1) {
                 sendSize = send(connfd, "USER FOUND", BUFF_SIZE, 0);
                 if (sendSize <= 0) {
-                    FD_CLR(connfd, &allset);
-                    close(connfd);
-                    client[i] = -1;
-                    return;
+                     close(connfd);
+        fds[i].fd = 0;
+        fds[i].events = 0;
+        fds[i].revents = 0;
+        useClient--; 
                 }
                 flag[i] = 1;
             } else if (currentUser[i]->status == 2) {
                 flag[i] = 0;
                 sendSize = send(connfd, "Account is not activated\n", BUFF_SIZE, 0);
                 if (sendSize <= 0) {
-                    FD_CLR(connfd, &allset);
                     close(connfd);
-                    client[i] = -1;
-                    return;
+        fds[i].fd = 0;
+        fds[i].events = 0;
+        fds[i].revents = 0;
+        useClient--; 
                 }
             } else if (currentUser[i]->status == 0) {
                 flag[i] = 0;
                 sendSize = send(connfd, "Account is blocked\n", BUFF_SIZE, 0);
                 if (sendSize <= 0) {
-                    FD_CLR(connfd, &allset);
-                    close(connfd);
-                    client[i] = -1;
-                    return;
+                     close(connfd);
+        fds[i].fd = 0;
+        fds[i].events = 0;
+        fds[i].revents = 0;
+        useClient--; 
                 }
             }
         } else {
             sendSize = send(connfd, "Cannot find account\n", BUFF_SIZE, 0);
             if (sendSize <= 0) {
-                FD_CLR(connfd, &allset);
-                close(connfd);
-                client[i] = -1;
-                return;
+               close(connfd);
+        fds[i].fd = 0;
+        fds[i].events = 0;
+        fds[i].revents = 0;
+        useClient--; 
             }
         }
         return;
@@ -254,10 +264,11 @@ void handleDataFromClient(int connfd, int i) {
             strcat(str3, str2);
             sendSize = send(connfd, str3, BUFF_SIZE, 0);
             if (sendSize <= 0) {
-                FD_CLR(connfd, &allset);
-                close(connfd);
-                client[i] = -1;
-                return;
+               close(connfd);
+        fds[i].fd = 0;
+        fds[i].events = 0;
+        fds[i].revents = 0;
+        useClient--; 
             }
             flag[i] = 0;
             return;
@@ -268,40 +279,45 @@ void handleDataFromClient(int connfd, int i) {
             strcpy(buff, "error");
             sendSize = send(connfd, buff, BUFF_SIZE, 0);
             if (sendSize <= 0) {
-                FD_CLR(connfd, &allset);
-                close(connfd);
-                client[i] = -1;
-                return;
+               close(connfd);
+        fds[i].fd = 0;
+        fds[i].events = 0;
+        fds[i].revents = 0;
+        useClient--; 
             }
             strcpy(done, "continue send message to server");
             send(connfd, done, BUFF_SIZE, 0);
             error[i] = 0;
         } else {
             if (number[0] != '\0') {
+                
                 sendSize = send(connfd, number, BUFF_SIZE, 0);
                 if (sendSize <= 0) {
-                    FD_CLR(connfd, &allset);
                     close(connfd);
-                    client[i] = -1;
-                    return;
+        fds[i].fd = 0;
+        fds[i].events = 0;
+        fds[i].revents = 0;
+        useClient--; 
                 }
             }
             if (alphabet[0] != '\0') {
                 sendSize = send(connfd, alphabet, BUFF_SIZE, 0);
                 if (sendSize <= 0) {
-                    FD_CLR(connfd, &allset);
                     close(connfd);
-                    client[i] = -1;
-                    return;
+        fds[i].fd = 0;
+        fds[i].events = 0;
+        fds[i].revents = 0;
+        useClient--; 
                 }
             }
             strcpy(done, "continue send message to server");
             sendSize = send(connfd, done, BUFF_SIZE, 0);
             if (sendSize <= 0) {
-                FD_CLR(connfd, &allset);
-                close(connfd);
-                client[i] = -1;
-                return;
+                  close(connfd);
+        fds[i].fd = 0;
+        fds[i].events = 0;
+        fds[i].revents = 0;
+        useClient--; 
             }
         }
     }
@@ -354,77 +370,48 @@ int main(int argc, char *argv[]) {
 
     maxfd = listenfd;
     maxi = -1;
-    for (i = 0; i < FD_SETSIZE; i++)
+    for (i = 0; i < BACKLOG; i++)
         client[i] = -1;
-    FD_ZERO(&allset);
-    FD_SET(listenfd, &allset);
 
+    memset(fds, 0, sizeof(fds));
+    fds[0].fd = listenfd;
+    fds[0].events = POLLIN;
     printf("Server started!\n");
-
+       
     while (1) {
-        maxfd = listenfd;
-        maxi = -1;
-        FD_ZERO(&allset);
-        FD_SET(listenfd, &allset);
-        for (i = 0; i < FD_SETSIZE; i++) {
-            if (client[i] > 0) FD_SET(client[i], &allset);
-            if (client[i] > maxfd) maxfd = client[i];
-            if (i > maxi) maxi = i;
-        }
+      
+         int nready = poll(fds, useClient + 1, 5000);
+        
+            if ( fds[0].revents & POLLIN) {
+                        clilen = sizeof(cliaddr);
+                        int connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &clilen);
+                        if (connfd < 0)
+                            perror("\nError: ");
+                        else {
+                            printf("You got a connection from %s\n", inet_ntoa(cliaddr.sin_addr));
+                            for (int i = 1; i <BACKLOG; i++) {
+                                 if (fds[i].fd == 0)
+                                    {
 
-        printf("\nSELECT...\n");
-        nready = select(maxfd + 1, &allset, NULL, NULL, NULL);
-        printf("nready = %d\n", nready);
-        if (nready < 0) {
-            perror("\nError: ");
+                                        fds[i].fd = connfd;
+                                        fds[i].events = POLLIN ;
+                                        useClient++;
+                                        break;
+                                    }
+                            }
+                            
+                        }
+                       
+                    }
 
-            continue;
-        }
-        printf("FD_ISSET listenfd %d: %d\n", listenfd, FD_ISSET(listenfd, &allset));
-        if (FD_ISSET(listenfd, &allset)) {   
-            clilen = sizeof(cliaddr);
-            if ((connfd = accept(listenfd, (struct sockaddr *) &cliaddr, &clilen)) < 0)
-                perror("\nError: ");
-            else {
-                printf("You got a connection from %s\n", inet_ntoa(cliaddr.sin_addr)); 
-                for (i = 0; i < FD_SETSIZE; i++) {
-                    printf("client[%d] = %d\n", i, client[i]);
-                    if (client[i] < 0) {
-                        client[i] = connfd;   
-                        printf("Added %d to client[%d]\n", connfd, i);
-                        FD_SET(connfd, &allset);    
-                        break;
+                for (int i = 1; i < BACKLOG; i++) {
+                    if (fds[i].fd > 0 && fds[i].revents & POLLIN) {
+                        int sockfd = fds[i].fd;
+                        handleDataFromClient(sockfd, i);
                     }
                 }
-                if (i == FD_SETSIZE) {
-                    printf("\nToo many clients");
-                    close(connfd);
-                }
-
-                if (connfd > maxfd)
-                    maxfd = connfd;  
-                printf("maxfd = %d\n", maxfd);
-                if (i > maxi)
-                    maxi = i;   
-                printf("maxi = %d\n", maxi);
-                if (--nready <= 0)
-                    continue;  
             }
-        }
 
-
-        for (i = 0; i <= maxi; i++) {  
-            printf("client[%d] = %d\n", i, client[i]);
-            if ((sockfd = client[i]) > 0) {
-                printf("FD_ISSET %d: %d\n", sockfd, FD_ISSET(sockfd, &allset));
-                if (FD_ISSET(sockfd, &allset)) {
-                    handleDataFromClient(sockfd, i);
-                    if (--nready <= 0)
-                        break;     
-                }
-            }
-        }
-    }
     close(listenfd);
     return 0;
 }
